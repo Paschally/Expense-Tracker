@@ -1,25 +1,37 @@
-const express = require('express');
-require('dotenv').config();
-const db_connect = require('./database/db');
-const dns = require('dns');
-const authRoute = require('./routes/userRoute')
+import express from 'express';
+import dotenv from 'dotenv';
+import dns from 'dns';
+
+import db_connect from './database/db.js';
+import userRoute from './routes/userRoute.js';
+import transactionRoute from './routes/transactionRoute.js';
+import categoryRoute from './routes/categoryRoute.js';
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5500;
+
+// Configure DNS servers
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
-// Connnect to db
+// Connect to database
 db_connect();
 
-// middleware
+// Middleware
 app.use(express.json());
 
+// Home route
 app.get('/home', (req, res) => {
-    res.send("Welcome to your Expense Tracker")
+    res.send('Welcome to your Expense Tracker');
 });
 
-app.use('/tracker/auth', authRoute);
+// API routes
+app.use('/api/auth', userRoute);
+app.use('/api/transactions', transactionRoute);
+app.use('/api/categories', categoryRoute);
 
-app.listen(port, ()=>{
-    console.log(`Server is listening on port: ${port}`)
+// Start server
+app.listen(port, () => {
+    console.log(`Server is listening on port: ${port}`);
 });
