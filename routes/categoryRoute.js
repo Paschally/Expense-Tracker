@@ -1,23 +1,27 @@
+import express from "express";
 
-const express = require('express');
-const { createCategory,
-        getCategories,
-        updateCategory,
-        deleteCategory} = require('../controllers/category_controller.js');
+import {
+  createCategory,
+  getCategories,
+  updateCategory,
+  deleteCategory
+} from "../controllers/categoryController.js";
 
-const authMiddleware = require('../middleware/authMiddleware.js');
+import authMiddleware from "../middleware/authMiddleware.js";
 
-const categoryRouter = express.Router();
+const router = express.Router();
 
-// All category endpoints require authentication
-categoryRouter.use(auth_middleware);
-// Create a category
-categoryRouter.post("/", create_category);
-// Get the user's categories and shared categories
-categoryRouter.get("/", get_categories);
-// Update a category
-categoryRouter.patch("/:category_id", update_category);
-// Delete a category
-categoryRouter.delete("/:category_id", delete_category);
+// All category routes require authentication
+// POST /api/categories - Create a custom category
+router.post("/create-cat", authMiddleware, createCategory);
 
-module.export =  category_router;
+// GET /api/categories - Get system and user's categories
+router.get("/get-cat", authMiddleware, getCategories);
+
+// Patch /api/categories/:id - Update a custom category
+router.patch("/update-cat/:id", authMiddleware, updateCategory);
+
+// DELETE /api/categories/:id - Delete a custom category
+router.delete("/delete-cat/:id", authMiddleware, deleteCategory);
+
+export default router;

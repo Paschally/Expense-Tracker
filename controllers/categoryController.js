@@ -1,32 +1,56 @@
-import categoryModel from "./categoryModel.js"; 
+import mongoose from "mongoose";
+import Category from "../models/categoryModel.js";
 
-// Create a new custom category
-  // POST api/categories
- 
+// ==========================================
+// 1. CREATE A NEW CATEGORY
+// POST /api/categories
+// ==========================================
 export const createCategory = async (req, res) => {
   try {
     const { name, type } = req.body;
-    const userId = req.user.id;
+    const userId = req.userInfo?.userId;
 
-    if (!name || !type) {
-      return res.status(400).json({ message: "Name and type are required" });
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
     }
 
+    if (!["income", "expense"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Type must be income or expense",
+      });
+    }
+
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid category name is required",
+      });
+    }
+
+    const trimmedName = name.trim();
+
     // Check if the user already has a category with this exact name
-    const existingCategory = await categoryModel.findOne({
-      name: name.trim(),
+    const existingCategory = await Category.findOne({
+      name: trimmedName,
       owner: userId,
     });
 
     if (existingCategory) {
-      return res.status(400).json({ message: "Category name already exists" });
+      return res.status(409).json({
+        success: false,
+        message: "Category name already exists",
+      });
     }
 
-    const newCategory = await categoryModel.create({
-      name,
+    const newCategory = await Category.create({
+      name: trimmedName,
       type,
       owner: userId,
-      is_system: false, 
+      is_system: false,
     });
 
     return res.status(201).json({
@@ -34,32 +58,64 @@ export const createCategory = async (req, res) => {
       data: newCategory,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Category name already exists",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    console.error("Create category error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 
-// Get all categories (System default + User specific)
- //  GET /api/categories
- 
+// ==========================================
+// 2. GET ALL CATEGORIES (System + User Specific)
+// GET /api/categories
+// ==========================================
 export const getCategories = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userInfo?.userId;
     const { type } = req.query;
 
-    // Query both global system categories and the logged-in user's categories
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    if (type && !["income", "expense"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Type must be income or expense",
+      });
+    }
+
+    // Query both global system categories and the logged-in user's custom categories
     const query = {
       $or: [
         { is_system: true },
-        { owner: userId }
-      ]
+        { owner: userId, is_system: false },
+      ],
     };
 
-    // If type query param is provided, filter by it
-    if (type === "income" || type === "expense") {
+    if (type) {
       query.type = type;
     }
 
-    const categories = await categoryModel.find(query).sort({ name: 1 });
+    const categories = await Category.find(query).sort({ name: 1 });
 
     return res.status(200).json({
       success: true,
@@ -67,39 +123,110 @@ export const getCategories = async (req, res) => {
       data: categories,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error("Get categories error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 
-// Update a custom category
-  //  PUT /api/categories/:id
- 
+// ==========================================
+// 3. UPDATE A CUSTOM CATEGORY
+// PUT /api/categories/:id
+// ==========================================
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type } = req.body;
-    const userId = req.user.id;
+    const userId = req.userInfo?.userId;
 
-    // Find the category first to check ownership
-    const category = await categoryModel.findById(id);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category ID",
+      });
+    }
+
+    if (name === undefined && type === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Provide a name or type to update",
+      });
+    }
+
+    if (
+      name !== undefined &&
+      (typeof name !== "string" || !name.trim() || name.trim().length > 60)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must be between 1 and 60 characters",
+      });
+    }
+
+    if (type !== undefined && !["income", "expense"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Type must be income or expense",
+      });
+    }
+
+    const category = await Category.findById(id);
 
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
     }
 
-    // Prevent users from changing system categories
+    // Prevent modifying system categories
     if (category.is_system) {
-      return res.status(403).json({ message: "System categories cannot be modified" });
+      return res.status(403).json({
+        success: false,
+        message: "System categories cannot be modified",
+      });
     }
 
-    // Ensure the logged-in user owns this category
-    if (category.owner.toString() !== userId) {
-      return res.status(403).json({ message: "Not authorized to update this category" });
+    // Ensure ownership
+    if (!category.owner || category.owner.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this category",
+      });
     }
 
-    // Apply updates safely
-    if (name) category.name = name;
-    if (type) category.type = type;
+    if (name !== undefined) {
+      const trimmedName = name.trim();
+
+      // Check for duplicate names belonging to the same user (excluding current category)
+      const duplicate = await Category.findOne({
+        _id: { $ne: category._id },
+        owner: userId,
+        name: trimmedName,
+      });
+
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: "Category name already exists",
+        });
+      }
+
+      category.name = trimmedName;
+    }
+
+    if (type !== undefined) {
+      category.type = type;
+    }
 
     const updatedCategory = await category.save();
 
@@ -108,32 +235,74 @@ export const updateCategory = async (req, res) => {
       data: updatedCategory,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Category name already exists",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    console.error("Update category error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 
-// Delete a custom category
-  //  DELETE /api/categories/:id
- 
+// ==========================================
+// 4. DELETE A CUSTOM CATEGORY
+// DELETE /api/categories/:id
+// ==========================================
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.userInfo?.userId;
 
-    const category = await categoryModel.findById(id);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category ID",
+      });
+    }
+
+    const category = await Category.findById(id);
 
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
     }
 
-    // Prevent users from deleting system categories
+    // Prevent deleting system categories
     if (category.is_system) {
-      return res.status(403).json({ message: "System categories cannot be deleted" });
+      return res.status(403).json({
+        success: false,
+        message: "System categories cannot be deleted",
+      });
     }
 
-    // Ensure the logged-in user owns this category
-    if (category.owner.toString() !== userId) {
-      return res.status(403).json({ message: "Not authorized to delete this category" });
+    // Ensure ownership
+    if (!category.owner || category.owner.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this category",
+      });
     }
 
     await category.deleteOne();
@@ -143,6 +312,10 @@ export const deleteCategory = async (req, res) => {
       message: "Category removed successfully",
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error("Delete category error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };

@@ -1,14 +1,17 @@
 /*
-This controller handles registration and login. 
-It also generates a JWT token that the client can use when accessing protected endpoints.
+This controller handles:
+1. User registration
+2. User login and JWT generation
+3. Getting all users (admin only)
+4. Deleting all users (admin only)
 */
 
-const User = require("../models/userModel");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+import User from "../models/userModel.js";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 // Register a new user
-const registerUser = async(req, res)=>{
+export const registerUser = async(req, res)=>{
   try{
     // get user info from request body
     const { username, email, password, isActive, role} = req.body;
@@ -16,7 +19,7 @@ const registerUser = async(req, res)=>{
     // check if user already exists with name and email
     const checkExistingUser = await User.findOne({$or: [{username, email}]})
     if(checkExistingUser){
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "User already exists, try with different username and email...."
       })
@@ -35,7 +38,7 @@ const registerUser = async(req, res)=>{
     })
     await newUser.save();
     if(newUser){
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         message: "User registered successfully"
       })
@@ -55,7 +58,7 @@ const registerUser = async(req, res)=>{
 }
 
 // Login a new user
-const loginUser = async(req, res)=>{
+export const loginUser = async(req, res)=>{
   try{
     const {username, password} = req.body;
 
@@ -63,7 +66,7 @@ const loginUser = async(req, res)=>{
     const user = await User.findOne({username});
 
     if(!user){
-      return res.status(400).status({
+      return res.status(400).json({
         success: false,
         message: 'User does not exist'
       })
@@ -100,4 +103,57 @@ const loginUser = async(req, res)=>{
   }
 }
 
-module.exports = {registerUser, loginUser};
+// Get all users (admin only; enforce this in the routes too)
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      users });
+  } catch (error) {
+    console.error("Get users error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve users"});
+  }
+};
+
+ // Delete one user by ID (admin only)
+export const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Prevent deleting admin accounts through this endpoint
+    if (user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin accounts cannot be deleted through this endpoint",
+      });
+    }
+
+    await User.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete user error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to delete user",
+    });
+  }
+};
