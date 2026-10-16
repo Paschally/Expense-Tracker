@@ -1,9 +1,10 @@
-
 import mongoose from "mongoose";
 import Category from "../models/categoryModel.js";
 
-// Create a custom category
+// ==========================================
+// 1. CREATE A NEW CATEGORY
 // POST /api/categories
+// ==========================================
 export const createCategory = async (req, res) => {
   try {
     const { name, type } = req.body;
@@ -22,8 +23,17 @@ export const createCategory = async (req, res) => {
         message: "Type must be income or expense",
       });
     }
+
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid category name is required",
+      });
+    }
+
     const trimmedName = name.trim();
 
+    // Check if the user already has a category with this exact name
     const existingCategory = await Category.findOne({
       name: trimmedName,
       owner: userId,
@@ -40,7 +50,7 @@ export const createCategory = async (req, res) => {
       name: trimmedName,
       type,
       owner: userId,
-      is_system: false
+      is_system: false,
     });
 
     return res.status(201).json({
@@ -63,7 +73,6 @@ export const createCategory = async (req, res) => {
     }
 
     console.error("Create category error:", error);
-
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -71,8 +80,10 @@ export const createCategory = async (req, res) => {
   }
 };
 
-// Get system categories and the logged-in user's categories
+// ==========================================
+// 2. GET ALL CATEGORIES (System + User Specific)
 // GET /api/categories
+// ==========================================
 export const getCategories = async (req, res) => {
   try {
     const userId = req.userInfo?.userId;
@@ -92,6 +103,7 @@ export const getCategories = async (req, res) => {
       });
     }
 
+    // Query both global system categories and the logged-in user's custom categories
     const query = {
       $or: [
         { is_system: true },
@@ -112,7 +124,6 @@ export const getCategories = async (req, res) => {
     });
   } catch (error) {
     console.error("Get categories error:", error);
-
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -120,8 +131,10 @@ export const getCategories = async (req, res) => {
   }
 };
 
-// Update a custom category
+// ==========================================
+// 3. UPDATE A CUSTOM CATEGORY
 // PUT /api/categories/:id
+// ==========================================
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -142,18 +155,16 @@ export const updateCategory = async (req, res) => {
       });
     }
 
-    if ( name === undefined && type === undefined) {
+    if (name === undefined && type === undefined) {
       return res.status(400).json({
         success: false,
-        message: "Provide a name, or type to update",
+        message: "Provide a name or type to update",
       });
     }
 
     if (
       name !== undefined &&
-      (typeof name !== "string" ||
-        !name.trim() ||
-        name.trim().length > 60)
+      (typeof name !== "string" || !name.trim() || name.trim().length > 60)
     ) {
       return res.status(400).json({
         success: false,
@@ -161,15 +172,13 @@ export const updateCategory = async (req, res) => {
       });
     }
 
-    if (
-      type !== undefined &&
-      !["income", "expense"].includes(type)
-    ) {
+    if (type !== undefined && !["income", "expense"].includes(type)) {
       return res.status(400).json({
         success: false,
         message: "Type must be income or expense",
       });
     }
+
     const category = await Category.findById(id);
 
     if (!category) {
@@ -179,6 +188,7 @@ export const updateCategory = async (req, res) => {
       });
     }
 
+    // Prevent modifying system categories
     if (category.is_system) {
       return res.status(403).json({
         success: false,
@@ -186,10 +196,8 @@ export const updateCategory = async (req, res) => {
       });
     }
 
-    if (
-      !category.owner ||
-      category.owner.toString() !== userId.toString()
-    ) {
+    // Ensure ownership
+    if (!category.owner || category.owner.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this category",
@@ -199,6 +207,7 @@ export const updateCategory = async (req, res) => {
     if (name !== undefined) {
       const trimmedName = name.trim();
 
+      // Check for duplicate names belonging to the same user (excluding current category)
       const duplicate = await Category.findOne({
         _id: { $ne: category._id },
         owner: userId,
@@ -218,6 +227,7 @@ export const updateCategory = async (req, res) => {
     if (type !== undefined) {
       category.type = type;
     }
+
     const updatedCategory = await category.save();
 
     return res.status(200).json({
@@ -240,7 +250,6 @@ export const updateCategory = async (req, res) => {
     }
 
     console.error("Update category error:", error);
-
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -248,8 +257,10 @@ export const updateCategory = async (req, res) => {
   }
 };
 
-// Delete a custom category
+// ==========================================
+// 4. DELETE A CUSTOM CATEGORY
 // DELETE /api/categories/:id
+// ==========================================
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -278,6 +289,7 @@ export const deleteCategory = async (req, res) => {
       });
     }
 
+    // Prevent deleting system categories
     if (category.is_system) {
       return res.status(403).json({
         success: false,
@@ -285,10 +297,8 @@ export const deleteCategory = async (req, res) => {
       });
     }
 
-    if (
-      !category.owner ||
-      category.owner.toString() !== userId.toString()
-    ) {
+    // Ensure ownership
+    if (!category.owner || category.owner.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this category",
@@ -303,7 +313,6 @@ export const deleteCategory = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete category error:", error);
-
     return res.status(500).json({
       success: false,
       message: "Internal server error",
