@@ -1,27 +1,37 @@
 import express from "express";
-
 import {
   createCategory,
   getCategories,
   updateCategory,
-  deleteCategory
+  deleteCategory,
 } from "../controllers/categoryController.js";
-
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// All category routes require authentication
-// POST /api/categories - Create a custom category
-router.post("/create-cat", authMiddleware, createCategory);
+// Apply authentication middleware to all category routes below
+router.use(authMiddleware);
 
-// GET /api/categories - Get system and user's categories
-router.get("/get-cat", authMiddleware, getCategories);
+// ==========================================
+// CATEGORY ROUTES
+// Base URL: /api/categories
+// ==========================================
 
-// Patch /api/categories/:id - Update a custom category
-router.patch("/update-cat/:id", authMiddleware, updateCategory);
+// @route   POST /api/categories
+// @desc    Create a new custom category
+router.post("/", createCategory);
 
-// DELETE /api/categories/:id - Delete a custom category
-router.delete("/delete-cat/:id", authMiddleware, deleteCategory);
+// @route   GET /api/categories
+// @desc    Get all system defaults and user-specific categories
+router.get("/", getCategories);
+
+// @route   PUT /api/categories/:id (also supports PATCH)
+// @desc    Update a custom category by ID
+router.put("/:id", updateCategory);
+router.patch("/:id", updateCategory);
+
+// @route   DELETE /api/categories/:id
+// @desc    Delete a custom category by ID
+router.delete("/:id", deleteCategory);
 
 export default router;
