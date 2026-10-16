@@ -1,49 +1,37 @@
-import { Router } from 'express';
-import Category from '../models/categoryModel.js';
-import { protect } from '../middleware/authMiddleware.js';
+import express from "express";
+import {
+  createCategory,
+  getCategories,
+  updateCategory,
+  deleteCategory,
+} from "../controllers/categoryController.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
-const router = Router();
+const router = express.Router();
 
-// All routes below require authentication
-router.use(protect);
+// Apply authentication middleware to all category routes below
+router.use(authMiddleware);
 
-// @route   GET /api/categories
-// @desc    Get all categories for the current user
-router.get('/', async (req, res, next) => {
-  try {
-    const categories = await Category.find({ user: req.user._id });
-    res.json({ success: true, data: categories });
-  } catch (err) {
-    next(err);
-  }
-});
+// ==========================================
+// CATEGORY ROUTES
+// Base URL: /api/categories
+// ==========================================
 
 // @route   POST /api/categories
-// @desc    Create a new category
-router.post('/', async (req, res, next) => {
-  try {
-    const category = await Category.create({ ...req.body, user: req.user._id });
-    res.status(201).json({ success: true, data: category });
-  } catch (err) {
-    next(err);
-  }
-});
+// @desc    Create a new custom category
+router.post("/", createCategory);
+
+// @route   GET /api/categories
+// @desc    Get all system defaults and user-specific categories
+router.get("/", getCategories);
+
+// @route   PUT /api/categories/:id (also supports PATCH)
+// @desc    Update a custom category by ID
+router.put("/:id", updateCategory);
+router.patch("/:id", updateCategory);
 
 // @route   DELETE /api/categories/:id
-// @desc    Delete a category owned by the current user
-router.delete('/:id', async (req, res, next) => {
-  try {
-    const category = await Category.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user._id,
-    });
-    if (!category) {
-      return res.status(404).json({ success: false, message: 'Category not found' });
-    }
-    res.json({ success: true, message: 'Category deleted' });
-  } catch (err) {
-    next(err);
-  }
-});
+// @desc    Delete a custom category by ID
+router.delete("/:id", deleteCategory);
 
 export default router;
