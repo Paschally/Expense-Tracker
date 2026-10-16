@@ -1,11 +1,13 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import dns from 'dns';
+import cors from 'cors';
 
 import db_connect from './database/db.js';
 import userRoute from './routes/userRoute.js';
 import transactionRoute from './routes/transactionRoute.js';
 import categoryRoute from './routes/categoryRoute.js';
+import imageRoute from './routes/imageRoute.js';
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ db_connect();
 // Middleware
 app.use(express.json());
 
+app.use(cors());
+
 // Home route
 app.get('/home', (req, res) => {
     res.send('Welcome to your Expense Tracker');
@@ -30,6 +34,7 @@ app.get('/home', (req, res) => {
 app.use('/api/auth', userRoute);
 app.use('/api/transactions', transactionRoute);
 app.use('/api/categories', categoryRoute);
+app.use('/api/images', imageRoute);
 
 // Start server
 app.listen(port, () => {
