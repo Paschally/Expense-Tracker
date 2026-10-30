@@ -1,40 +1,30 @@
-/*require('dotenv').config();
-const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
 const express = require('express');
-const app = express();
-const db_connect = require('./database/db');
-const authRoute = require('./routes/userRoute')
-const MONGO_ATLAS = process.env.MONGO_ATLAS;
-const port = process.env.PORT || 5500;*?*/
-
 require('dotenv').config();
+const db_connect = require('./database/db');
+const dns = require('dns');
+const authRoute = require('./routes/userRoute')
 
-const dns = require('dns')
-dns.setServers(['8.8.8.8', '1.1.1.1'])
-
-const app = require('./app');
-const connectDB = require('./config/db');
-const MONGO_ATLAS = process.env.MONGO_ATLAS
-const PORT = process.env.PORT || 5000;
-
-connectDB(MONGO_ATLAS)
-.then(() => console.log(`🚀 Server running on port ${PORT}`))
-.catch(err => console.error("Connection Error: ", err));
-
-
+const app = express();
+const port = process.env.PORT || 5500;
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 // Connnect to db
-db_connect(MONGO_ATLAS);
+db_connect();
+
 // middleware
 app.use(express.json());
 
+// Home route
 app.get('/home', (req, res) => {
-    res.send("Welcome to your Expense Tracker")
+    res.send('Welcome to your Expense Tracker');
 });
 
-app.use('/tracker/auth', authRoute);
+// API routes
+app.use('/api/auth', userRoute);
+app.use('/api/transactions', transactionRoute);
+app.use('/api/categories', categoryRoute);
 
-app.listen(port, ()=>{
-    console.log(`Server is listening on port: ${port}`)
+// Start server
+app.listen(port, () => {
+    console.log(`Server is listening on port: ${port}`);
 });

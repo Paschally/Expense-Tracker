@@ -1,26 +1,43 @@
-import mongoose from 'mongoose';
+// This model defines the categories used to organize transactions, such as food, transport, salary, and business income.
+import mongoose from "mongoose";
 
 const categorySchema = new mongoose.Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+    name: { 
+      type: String, 
+      required: [true, "Category name is required"],
+      trim: true, 
+      maxlength: [60, "Category name cannot exceed 60 characters"] 
     },
-    name: { type: String, required: true, trim: true },
     type: {
       type: String,
-      enum: ['income', 'expense'],
+      enum: ["income", "expense"],
       required: true,
     },
-    icon: { type: String, default: '📁' },
+    owner: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      default: null 
+    },
+    is_system: { 
+      type: Boolean, 
+      default: false 
+    },
+    icon: { 
+      type: String, 
+      default: "📁" 
+    },
   },
   { timestamps: true }
 );
 
-categorySchema.index({ user: 1, name: 1 }, { unique: true });
+// Prevent duplicate category names for the same owner, name, and type combination
+categorySchema.index(
+  { owner: 1, name: 1, type: 1 },
+  { unique: true }
+);
 
 const Category =
-  mongoose.models.Category || mongoose.model('Category', categorySchema);
+  mongoose.models.Category || mongoose.model("Category", categorySchema);
 
 export default Category;

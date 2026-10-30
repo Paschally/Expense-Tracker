@@ -1,30 +1,30 @@
+import express from "express";
 
-const express = require('express');
-const { createTransaction,
-        getTransactions,
-        updateTransaction,
-        deleteTransaction} = require('../controllers/transaction_controller.js');
+import {
+  createTransaction,
+  getTransactions,
+  getSingleTransaction,
+  updateTransaction,
+  deleteTransaction} from "../controllers/transactionController.js";
 
-const authMiddleware = require('../middleware/auth_middleware.js');
+import authMiddleware from "../middleware/authMiddleware.js";
 
-const transactionRouter = express.Router();
+const router = express.Router();
 
-// All transaction endpoints require authentication
-transactionRouter.use(authMiddleware);
+// All transaction routes require authentication
+// POST /api/transactions - Create a transaction
+router.post("/create-tran/",authMiddleware, createTransaction);
 
-// Create a transaction
-transactionRouter.post("/", create_transaction);
+// GET /api/transactions - Get all user's transactions
+router.get("/get-all/", authMiddleware, getTransactions);
 
-// Get all transactions, with optional filters
-transactionRouter.get("/", get_transactions);
+// GET /api/transactions/:id - Get one transaction
+router.get("/get-one/:id", authMiddleware, getSingleTransaction);
 
-// Get one transaction by ID
-transactionRouter.get("/:transaction_id", get_transaction);
+// PUT /api/transactions/:id - Update a transaction
+router.patch("/update-tran/:id", authMiddleware, updateTransaction);
 
-// Update a transaction
-transactionRouter.patch("/:transaction_id", update_transaction);
+// DELETE /api/transactions/:id - Delete a transaction
+router.delete("/delete-tran/:id", authMiddleware, deleteTransaction);
 
-// Delete a transaction
-transactionRouter.delete("/:transaction_id", delete_transaction);
-
-module.exports = transactionRouter;
+export default router;
